@@ -3,8 +3,19 @@
 from fastapi import FastAPI
 from pydantic import BaseModel
 from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+
 
 app = FastAPI()
+
+# Add this after your app = FastAPI() line
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+# Add this route for the root path
+@app.get("/")
+def read_root():
+    return FileResponse("static/index.html")
 
 tasks=[]
 

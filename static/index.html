@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Task Manager</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            line-height: 1.6;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .container {
+            margin-bottom: 30px;
+        }
+        input, button {
+            padding: 8px 12px;
+            margin: 5px 0;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        #taskList {
+            margin-top: 20px;
+        }
+        .task-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .task-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        .delete-btn {
+            background-color: #f44336;
+        }
+        .delete-btn:hover {
+            background-color: #d32f2f;
+        }
+        .edit-btn {
+            background-color: #2196F3;
+        }
+        .edit-btn:hover {
+            background-color: #0b7dda;
+        }
+        .hidden {
+            display: none;
+        }
+        #responseArea {
+            background-color: #f8f8f8;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 20px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <h1 style="text-align: center;">Task Manager</h1>
+    
+    <div class="container" style="text-align: center;" >
+        <h2 >Add New Task</h2>
+        <input type="text" id="newTaskName" placeholder="Enter task name">
+        <button onclick="createTask()">Add Task</button>
+    </div>
+    
+    <div class="container">
+        <h2>Task List</h2>
+        <button onclick="loadTasks()">Refresh Tasks</button>
+        <div id="taskList"></div>
+    </div>
+    
+    <div id="editTaskForm" class="container hidden">
+        <h2>Update Task</h2>
+        <input type="text" id="editTaskName" placeholder="Enter new task name">
+        <input type="hidden" id="editTaskId">
+        <button onclick="updateTask()">Update Task</button>
+        <button onclick="cancelEdit()">Cancel</button>
+    </div>
+    
+    <div class="container">
+        <h2>API Response</h2>
+        <div id="responseArea"></div>
+    </div>
+    
+    <script>
+        // Initialize by loading tasks
+        document.addEventListener('DOMContentLoaded', function() {
+            loadTasks();
+        });
+        
+        // Create a new task
+        async function createTask() {
+            const taskName = document.getElementById('newTaskName').value.trim();
+            
+            if (!taskName) {
+                showResponse('Please enter a task name');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/create-task', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name: taskName })
+                });
+                
+                const data = await response.json();
+                showResponse(JSON.stringify(data, null, 2));
+                
+                if (response.ok) {
+                    document.getElementById('newTaskName').value = '';
+                    loadTasks();
+                }
+            } catch (error) {
+                showResponse('Error: ' + error.message);
+            }
+        }
+        
+        // Load all tasks
+        async function loadTasks() {
+            try {
+                const response = await fetch('/get-task');
+                const data = await response.json();
+                showResponse(JSON.stringify(data, null, 2));
+                
+                if (response.ok) {
+                    renderTaskList(data.tasks || []);
+                }
+            } catch (error) {
+                showResponse('Error: ' + error.message);
+            }
+        }
+        
+        // Delete a task
+        async function deleteTask(taskId) {
+            try {
+                const response = await fetch(`/delete-task/${taskId}`, {
+                    method: 'DELETE'
+                });
+                
+                const data = await response.json();
+                showResponse(JSON.stringify(data, null, 2));
+                
+                if (response.ok) {
+                    loadTasks();
+                }
+            } catch (error) {
+                showResponse('Error: ' + error.message);
+            }
+        }
+        
+        // Show edit form for a task
+        function showEditForm(taskId, taskName) {
+            document.getElementById('editTaskId').value = taskId;
+            document.getElementById('editTaskName').value = taskName;
+            document.getElementById('editTaskForm').classList.remove('hidden');
+        }
+        
+        // Cancel edit
+        function cancelEdit() {
+            document.getElementById('editTaskForm').classList.add('hidden');
+        }
+        
+        // Update a task
+        async function updateTask() {
+            const taskId = document.getElementById('editTaskId').value;
+            const taskName = document.getElementById('editTaskName').value.trim();
+            
+            if (!taskName) {
+                showResponse('Please enter a task name');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/update-task/${taskId}`, {
+                    method: 'PUT',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ name: taskName })
+                });
+                
+                const data = await response.json();
+                showResponse(JSON.stringify(data, null, 2));
+                
+                if (response.ok) {
+                    document.getElementById('editTaskForm').classList.add('hidden');
+                    loadTasks();
+                }
+            } catch (error) {
+                showResponse('Error: ' + error.message);
+            }
+        }
+        
+        // Render the task list
+        function renderTaskList(tasks) {
+            const taskListElement = document.getElementById('taskList');
+            taskListElement.innerHTML = '';
+            
+            if (tasks.length === 0) {
+                taskListElement.innerHTML = '<p>No tasks available</p>';
+                return;
+            }
+            
+            tasks.forEach((task, index) => {
+                const taskItem = document.createElement('div');
+                taskItem.className = 'task-item';
+                
+                const taskName = document.createElement('div');
+                taskName.textContent = task.name;
+                
+                const taskButtons = document.createElement('div');
+                taskButtons.className = 'task-buttons';
+                
+                const editButton = document.createElement('button');
+                editButton.className = 'edit-btn';
+                editButton.textContent = 'Edit';
+                editButton.onclick = () => showEditForm(index, task.name);
+                
+                const deleteButton = document.createElement('button');
+                deleteButton.className = 'delete-btn';
+                deleteButton.textContent = 'Delete';
+                deleteButton.onclick = () => deleteTask(index);
+                
+                taskButtons.appendChild(editButton);
+                taskButtons.appendChild(deleteButton);
+                
+                taskItem.appendChild(taskName);
+                taskItem.appendChild(taskButtons);
+                
+                taskListElement.appendChild(taskItem);
+            });
+        }
+        
+        // Display API response
+        function showResponse(text) {
+            document.getElementById('responseArea').textContent = text;
+        }
+    </script>
+</body>
+</html>
